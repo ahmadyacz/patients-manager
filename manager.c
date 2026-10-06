@@ -13,104 +13,132 @@ typedef struct patient
     struct patient *right;
 } patient;
 
-patient *head;
+patient *head = NULL;
 
 int load(FILE *data);
-void place(patient *current, patient *new);
+void place(patient *current, patient *new_patient);
 void search(int id, patient *node);
+void free_tree(patient *node);
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("Usage: %s data.csv\n", argv[0]);
         return 1;
     }
-    if (!(argv[0][strlen(argv[0] - 1)] == 'v' && argv[0][strlen(argv[0] - 2)] == 's' && argv[0][strlen(argv[0] - 3)] == 'c')) {
-        printf("The app accept only the csv files\n");
+
+    int len = strlen(argv[1]);
+    if (len < 4 || strcmp(argv[1] + len - 4, ".csv") != 0) {
+        printf("The app accepts only .csv files\n");
         return 2;
     }
+
     FILE *database = fopen(argv[1], "r");
     if (database == NULL) {
-        printf("Couldn't open the data\n");
+        printf("Couldn't open the data file\n");
         return 3;
     }
+
     if (load(database) != 0) {
         printf("Error: Couldn't load the data\n");
+        fclose(database);
         return 4;
     }
-    char *id;
+    fclose(database);
+
+    char id_buffer[20];
     printf("Id: ");
-    fgets(id, sizeof(int), stdin);
-    search(atoi(id), head);
-    
+    if (fgets(id_buffer, sizeof(id_buffer), stdin) != NULL) {
+        search(atoi(id_buffer), head);
+    }
+
+    free_tree(head);
+    return 0;
 }
 
 int load(FILE *data)
 {
     char line[124];
     bool skip = false;
+
     while (fgets(line, sizeof(line), data) != NULL) {
         if (!skip) {
-            skip = true;
+            skip = true; // Skip header row
             continue;
         }
-        patient *new = malloc(sizeof(patient));
-        char *word = strtok(line, ",");
-        int wichone = 0;
+
+        patient *new_patient = malloc(sizeof(patient));
+        if (new_patient == NULL) return 1;
+
+        char *word = strtok(line, ",\r\n");
+        int field = 0;
+
         while (word != NULL) {
-            if (wichone == 0) {
-                new->id = atoi(word);
-            } else if (wichone == 1) {
-                strcpy(new->name, word);
-            } else if (wichone == 2) {
-                new->emergency_level = atoi(word);
-            } else if (wichone == 3) {
-                new->room = atoi(word);
-                wichone = 0;
+            if (field == 0) {
+                new_patient->id = atoi(word);
+            } else if (field == 1) {
+                strncpy(new_patient->name, word, sizeof(new_patient->name) - 1);
+                new_patient->name[sizeof(new_patient->name) - 1] = '\0';
+            } else if (field == 2) {
+                new_patient->emergency_level = atoi(word);
+            } else if (field == 3) {
+                new_patient->room = atoi(word);
             }
-            word = strtok(NULL, ",");
-            wichone++;
+            word = strtok(NULL, ",\r\n");
+            field++;
         }
-        new->left = NULL;
-        new->right = NULL;
-        patient *cursor = head;
-        if (cursor == NULL) {
-            head = new;
-            continue;
+
+        new_patient->left = NULL;
+        new_patient->right = NULL;
+
+        if (head == NULL) {
+            head = new_patient;
+        } else {
+            place(head, new_patient);
         }
-        place(cursor, new);
     }
     return 0;
 }
 
-void place(patient *current, patient *new)
+void place(patient *current, patient *new_patient)
 {
-    if (new->id < current->id && current->left == NULL) {
-        current->left = new;
+    if (new_patient->id < current->id) {
+        if (current->left == NULL) {
+            current->left = new_patient;
+        } else {
+            place(current->left, new_patient);
+        }
+    } else if (new_patient->id > current->id) {
+        if (current->right == NULL) {
+            current->right = new_patient;
+        } else {
+            place(current->right, new_patient);
+        }
+    } else {
+        // Duplicate ID found, clean up allocated memory
+        free(new_patient);
     }
-    else if (new->id > current->id && current->right == NULL) {
-        current->right = new;
-    }
-    else if (new->id < current->id) {
-        place(current->left, new);
-    }
-    else if (new->id > current->id) {
-        place(current->right, new);
-    }
-    return;
 }
 
 void search(int id, patient *node)
 {
+    if (node == NULL) {
+        printf("Couldn't find the wanted person\n");
+        return;
+    }
+
     if (id == node->id) {
-        printf("Name:%s Room:%i Emergency_level:%i\n", node->name, node->room, node->emergency_level);
-    }
-    else if (id < node->id && node->left != NULL) {
+        printf("Name:%s Room:%d Emergency_level:%d\n", node->name, node->room, node->emergency_level);
+    } else if (id < node->id) {
         search(id, node->left);
-    }
-    else if (id > node->id && node->right != NULL) {
+    } else {
         search(id, node->right);
     }
-    else {
-        printf("Could't find the wanted person\n");
-    }
+}
+
+void free_tree(patient *node)
+{
+    if (node == NULL) return;
+    free_tree(node->left);
+    free_tree(node->right);
+    free(node);
 }
