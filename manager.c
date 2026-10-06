@@ -17,6 +17,7 @@ patient *head;
 
 int load(FILE *data);
 void place(patient *current, patient *new);
+void search(int id, patient *node);
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -36,6 +37,10 @@ int main(int argc, char *argv[]) {
         printf("Error: Couldn't load the data\n");
         return 4;
     }
+    char *id;
+    printf("Id: ");
+    fgets(id, sizeof(int), stdin);
+    search(atoi(id), head);
     
 }
 
@@ -92,4 +97,20 @@ void place(patient *current, patient *new)
         place(current->right, new);
     }
     return;
+}
+
+void search(int id, patient *node)
+{
+    if (id == node->id) {
+        printf("Name:%s Room:%i Emergency_level:%i\n", node->name, node->room, node->emergency_level);
+    }
+    else if (id < node->id && node->left != NULL) {
+        search(id, node->left);
+    }
+    else if (id > node->id && node->right != NULL) {
+        search(id, node->right);
+    }
+    else {
+        printf("Could't find the wanted person\n");
+    }
 }
